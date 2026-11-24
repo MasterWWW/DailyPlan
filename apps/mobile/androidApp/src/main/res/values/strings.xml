@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DailyPlan</string>
+    <string name="widget_description">查看未完成事项，直接勾选、打字或录一段语音。</string>
+</resources>

@@ -1,0 +1,517 @@
+openapi: 3.1.0
+info:
+  title: DailyPlan private sync API
+  version: 1.0.0
+  description: |
+    Single-user, internal-network API used by the macOS, Android, Windows and iPhone clients.
+    Requests use a Bearer token. Task and settings operations are idempotent by opId.
+servers:
+  - url: http://192.168.10.20:8787
+    description: Example intranet deployment
+security:
+  - bearerAuth: []
+paths:
+  /v1/status:
+    get:
+      operationId: getStatus
+      summary: Handshake and dataset identity
+      responses:
+        "200":
+          description: Current dataset identity and cursor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/operations:
+    post:
+      operationId: submitOperation
+      summary: Apply one idempotent local operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Operation"
+      responses:
+        "200":
+          description: Operation receipt; a repeated opId returns the original receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationReceipt"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: opId payload mismatch or missing fallback task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/ReadOnly"
+  /v1/changes:
+    get:
+      operationId: listChanges
+      summary: Pull changes after a dataset cursor
+      parameters:
+        - name: after
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Ordered change page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangesPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/snapshot:
+    get:
+      operationId: getSnapshot
+      summary: Read a repeatable-read snapshot with its matching cursor
+      responses:
+        "200":
+          description: Snapshot and baseline cursor from the same transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Snapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/attachments/{attachmentId}:
+    parameters:
+      - name: attachmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: uploadAttachment
+      summary: Stream an original screenshot or recording into the attachment volume
+      parameters:
+        - name: taskId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: kind
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/AttachmentKind"
+        - name: mediaType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [image/png, image/jpeg, audio/wav]
+        - name: X-Content-SHA256
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{64}$"
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          audio/wav:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Attachment archived and published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "200":
+          description: Exact retry already archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Attachment id reused with different content, or task not yet known
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Upload exceeds configured maximum
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/ReadOnly"
+    get:
+      operationId: downloadAttachment
+      summary: Download an original attachment; supports HTTP Range
+      responses:
+        "200":
+          description: Complete attachment
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial attachment
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Attachment not found
+  /v1/attachments/{attachmentId}/transcription/retry:
+    post:
+      operationId: retryTranscription
+      summary: Requeue a failed recording transcription
+      parameters:
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Job requeued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Recording not found
+        "409":
+          description: Attachment is not a succeeded/failed recording
+        "503":
+          $ref: "#/components/responses/ReadOnly"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ReadOnly:
+      description: Server is in the read-only migration window
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Priority:
+      type: string
+      enum: [normal, urgent, very_urgent]
+    TitleSource:
+      type: string
+      enum: [manual, voice_placeholder, screenshot_placeholder]
+    AttachmentKind:
+      type: string
+      enum: [screenshot, recording]
+    TranscriptionStatus:
+      type: string
+      enum: [pending, processing, complete, failed]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    Task:
+      type: object
+      required:
+        [taskId, title, titleSource, createdOn, dueDate, priority, completed, updatedAt]
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        titleSource:
+          $ref: "#/components/schemas/TitleSource"
+        createdOn:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        dueTime:
+          type: [string, "null"]
+          pattern: "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        completed:
+          type: boolean
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WorkSettings:
+      type: object
+      required: [workdays, timeZone, workStart, workEnd, reminderLeadMinutes]
+      properties:
+        workdays:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        timeZone:
+          type: string
+          example: Asia/Shanghai
+        workStart:
+          type: string
+          pattern: "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+        workEnd:
+          type: string
+          pattern: "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+        reminderLeadMinutes:
+          type: integer
+          minimum: 0
+          maximum: 600
+    TaskPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        titleSource:
+          $ref: "#/components/schemas/TitleSource"
+        dueDate:
+          type: string
+          format: date
+        dueTime:
+          type: [string, "null"]
+        priority:
+          $ref: "#/components/schemas/Priority"
+        completed:
+          type: boolean
+    Operation:
+      oneOf:
+        - type: object
+          required: [opId, deviceId, type, task]
+          properties:
+            opId:
+              type: string
+              format: uuid
+            deviceId:
+              type: string
+              format: uuid
+            type:
+              const: task.create
+            occurredAt:
+              type: string
+              format: date-time
+            task:
+              $ref: "#/components/schemas/Task"
+        - type: object
+          required: [opId, deviceId, type, taskId, set]
+          properties:
+            opId:
+              type: string
+              format: uuid
+            deviceId:
+              type: string
+              format: uuid
+            type:
+              const: task.update
+            occurredAt:
+              type: string
+              format: date-time
+            taskId:
+              type: string
+              format: uuid
+            set:
+              $ref: "#/components/schemas/TaskPatch"
+            fallback:
+              $ref: "#/components/schemas/Task"
+        - type: object
+          required: [opId, deviceId, type, settings]
+          properties:
+            opId:
+              type: string
+              format: uuid
+            deviceId:
+              type: string
+              format: uuid
+            type:
+              const: settings.update
+            occurredAt:
+              type: string
+              format: date-time
+            settings:
+              $ref: "#/components/schemas/WorkSettings"
+    OperationReceipt:
+      type: object
+      required: [opId, cursor]
+      properties:
+        opId:
+          type: string
+          format: uuid
+        cursor:
+          type: integer
+          format: int64
+        task:
+          $ref: "#/components/schemas/Task"
+        settings:
+          $ref: "#/components/schemas/WorkSettings"
+    Attachment:
+      type: object
+      required:
+        [attachmentId, taskId, kind, mediaType, byteSize, sha256, createdAt]
+      properties:
+        attachmentId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        mediaType:
+          type: string
+        byteSize:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        createdAt:
+          type: string
+          format: date-time
+        transcriptionStatus:
+          oneOf:
+            - $ref: "#/components/schemas/TranscriptionStatus"
+            - type: "null"
+        transcript:
+          type: [string, "null"]
+        transcriptionError:
+          type: [string, "null"]
+    Change:
+      type: object
+      required: [seq, type]
+      properties:
+        seq:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [task.created, task.updated, settings.updated, attachment.updated]
+        task:
+          $ref: "#/components/schemas/Task"
+        settings:
+          $ref: "#/components/schemas/WorkSettings"
+        attachment:
+          $ref: "#/components/schemas/Attachment"
+    ChangesPage:
+      type: object
+      required: [changes, nextCursor, hasMore]
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Change"
+        nextCursor:
+          type: integer
+          format: int64
+        hasMore:
+          type: boolean
+    Snapshot:
+      type: object
+      required: [cursor, restoreVersion, tasks, settings, attachments]
+      properties:
+        cursor:
+          type: integer
+          format: int64
+        restoreVersion:
+          type: integer
+          format: int64
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        settings:
+          $ref: "#/components/schemas/WorkSettings"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+    Status:
+      type: object
+      required:
+        [protocolVersion, serverTime, datasetId, restoreVersion, cursor, transcriptionEnabled]
+      properties:
+        protocolVersion:
+          type: integer
+          const: 1
+        serverTime:
+          type: string
+          format: date-time
+        datasetId:
+          type: string
+        restoreVersion:
+          type: integer
+          format: int64
+        cursor:
+          type: integer
+          format: int64
+        transcriptionEnabled:
+          type: boolean
+

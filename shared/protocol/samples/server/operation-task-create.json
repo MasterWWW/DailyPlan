@@ -1,0 +1,19 @@
+{
+  "opId": "d2c88af3-9518-47b4-a93f-73e0a1108272",
+  "deviceId": "f5ee92f1-d692-4d5b-bba3-bfbd6a8d370c",
+  "type": "task.create",
+  "occurredAt": "2026-11-17T09:03:11+08:00",
+  "task": {
+    "taskId": "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d",
+    "title": "核对运费",
+    "titleSource": "manual",
+    "createdOn": "2026-11-17",
+    "dueDate": "2026-11-17",
+    "dueTime": null,
+    "priority": "normal",
+    "completed": false,
+    "completedAt": null,
+    "updatedAt": "2026-11-17T09:03:11+08:00"
+  }
+}
+

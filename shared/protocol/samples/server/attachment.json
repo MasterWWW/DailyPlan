@@ -1,0 +1,13 @@
+{
+  "attachmentId": "5f6f7cff-3fd2-4c29-bde0-83945080d73d",
+  "taskId": "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d",
+  "kind": "recording",
+  "mediaType": "audio/wav",
+  "byteSize": 96044,
+  "sha256": "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592",
+  "createdAt": "2026-11-17T01:05:00Z",
+  "transcriptionStatus": "pending",
+  "transcript": null,
+  "transcriptionError": null
+}
+

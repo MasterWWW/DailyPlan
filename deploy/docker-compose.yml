@@ -1,0 +1,72 @@
+name: dailyplan
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: dailyplan-api:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DAILYPLAN_ADDR: ":8787"
+      DAILYPLAN_DATASET_ID: ${DAILYPLAN_DATASET_ID:-office-default}
+      DAILYPLAN_API_TOKEN: ${DAILYPLAN_API_TOKEN:?set DAILYPLAN_API_TOKEN in deploy/.env}
+      DAILYPLAN_MYSQL_DSN: "dailyplan:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in deploy/.env}@tcp(db:3306)/dailyplan?parseTime=true&charset=utf8mb4&loc=UTC"
+      DAILYPLAN_ATTACHMENTS_DIR: /data/attachments
+      DAILYPLAN_READ_ONLY: ${DAILYPLAN_READ_ONLY:-false}
+      DAILYPLAN_MAX_UPLOAD_BYTES: ${DAILYPLAN_MAX_UPLOAD_BYTES:-104857600}
+      WHISPER_BIN: /usr/local/bin/whisper-cli
+      WHISPER_MODEL: /models/${WHISPER_MODEL_FILE:-ggml-base.bin}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-zh}
+      WHISPER_MODEL_VERSION: ${WHISPER_MODEL_VERSION:-whisper-base}
+      DAILYPLAN_WHISPER_TIMEOUT: ${DAILYPLAN_WHISPER_TIMEOUT:-15m}
+    ports:
+      - "${DAILYPLAN_PORT:-8787}:8787"
+    volumes:
+      - dailyplan-attachments:/data/attachments
+      - dailyplan-backups:/backups
+      - ./models:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - dailyplan-internal
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    environment:
+      MYSQL_DATABASE: dailyplan
+      MYSQL_USER: dailyplan
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in deploy/.env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in deploy/.env}
+    volumes:
+      - dailyplan-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - dailyplan-internal
+
+volumes:
+  dailyplan-mysql:
+  dailyplan-attachments:
+  dailyplan-backups:
+
+networks:
+  dailyplan-internal:
+    driver: bridge
+

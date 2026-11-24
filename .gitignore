@@ -1,0 +1,35 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# JavaScript / Tauri
+node_modules/
+dist/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Rust
+target/
+
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+*.jks
+apps/mobile/.idea/
+
+# Local runtime data
+/data/
+/backups/
+deploy/models/*.bin
+*.wav
+*.tmp
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+

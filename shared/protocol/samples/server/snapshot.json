@@ -1,0 +1,27 @@
+{
+  "cursor": 12,
+  "restoreVersion": 1,
+  "tasks": [
+    {
+      "taskId": "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d",
+      "title": "核对运费",
+      "titleSource": "manual",
+      "createdOn": "2026-11-17",
+      "dueDate": "2026-11-17",
+      "dueTime": null,
+      "priority": "normal",
+      "completed": false,
+      "completedAt": null,
+      "updatedAt": "2026-11-17T01:03:11Z"
+    }
+  ],
+  "settings": {
+    "workdays": [1, 2, 3, 4, 5],
+    "timeZone": "Asia/Shanghai",
+    "workStart": "09:00",
+    "workEnd": "18:00",
+    "reminderLeadMinutes": 15
+  },
+  "attachments": []
+}
+

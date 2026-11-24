@@ -1,0 +1,559 @@
+{
+  "version": 1,
+  "settingsDefaults": {
+    "workdays": [1, 2, 3, 4, 5],
+    "timeZone": "Asia/Shanghai",
+    "workStart": "09:00",
+    "workEnd": "18:00",
+    "reminderLeadMinutes": 15
+  },
+  "cases": [
+    {
+      "name": "monday_due_midweek_is_visible_and_due_soon_on_tuesday",
+      "now": "2026-11-17T09:05:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-17",
+          "period": "morning",
+          "taskIds": ["proposal"]
+        }
+      }
+    },
+    {
+      "name": "tuesday_evening_advances_to_evening_period",
+      "now": "2026-11-17T17:45:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-17",
+          "period": "evening",
+          "taskIds": ["proposal"]
+        }
+      }
+    },
+    {
+      "name": "completed_task_is_removed_everywhere",
+      "now": "2026-11-17T17:45:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": true
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": [],
+        "attention": [],
+        "reminder": null
+      }
+    },
+    {
+      "name": "wednesday_morning_keeps_unfinished_due_today",
+      "now": "2026-11-18T09:05:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [
+        {"workDate": "2026-11-17", "period": "morning"},
+        {"workDate": "2026-11-17", "period": "evening"}
+      ],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-18",
+          "period": "morning",
+          "taskIds": ["proposal"]
+        }
+      }
+    },
+    {
+      "name": "thursday_after_deadline_is_overdue",
+      "now": "2026-11-19T09:00:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": true, "dueSoon": false}
+        ],
+        "reminder": {
+          "workDate": "2026-11-19",
+          "period": "morning",
+          "taskIds": ["proposal"]
+        }
+      }
+    },
+    {
+      "name": "monday_due_becomes_due_soon_on_friday",
+      "now": "2026-11-20T09:00:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "monday",
+          "title": "周一提案",
+          "createdOn": "2026-11-20",
+          "dueDate": "2026-11-23",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["monday"],
+        "attention": [
+          {"taskId": "monday", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-20",
+          "period": "morning",
+          "taskIds": ["monday"]
+        }
+      }
+    },
+    {
+      "name": "weekend_due_date_uses_friday_as_previous_workday",
+      "now": "2026-11-20T17:45:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "weekend",
+          "title": "周末回复",
+          "createdOn": "2026-11-20",
+          "dueDate": "2026-11-21",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["weekend"],
+        "attention": [
+          {"taskId": "weekend", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-20",
+          "period": "evening",
+          "taskIds": ["weekend"]
+        }
+      }
+    },
+    {
+      "name": "weekend_has_no_scheduled_reminder",
+      "now": "2026-11-21T10:00:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "weekend",
+          "title": "周末回复",
+          "createdOn": "2026-11-21",
+          "dueDate": "2026-11-22",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["weekend"],
+        "attention": [
+          {"taskId": "weekend", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": null
+      }
+    },
+    {
+      "name": "acknowledged_morning_is_silent_until_evening",
+      "now": "2026-11-17T10:30:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [
+        {"workDate": "2026-11-17", "period": "morning"}
+      ],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": null
+      }
+    },
+    {
+      "name": "acknowledged_evening_stays_silent",
+      "now": "2026-11-17T18:20:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [
+        {"workDate": "2026-11-17", "period": "evening"}
+      ],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "dueTime": "15:00",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": null
+      }
+    },
+    {
+      "name": "date_only_is_not_overdue_until_end_of_workday",
+      "now": "2026-11-18T23:59:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [
+        {"workDate": "2026-11-18", "period": "morning"},
+        {"workDate": "2026-11-18", "period": "evening"}
+      ],
+      "tasks": [
+        {
+          "taskId": "date-only",
+          "title": "当天完成",
+          "createdOn": "2026-11-18",
+          "dueDate": "2026-11-18",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["date-only"],
+        "attention": [
+          {"taskId": "date-only", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": null
+      }
+    },
+    {
+      "name": "date_only_becomes_overdue_next_morning",
+      "now": "2026-11-19T09:00:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "date-only",
+          "title": "昨天漏做",
+          "createdOn": "2026-11-18",
+          "dueDate": "2026-11-18",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["date-only"],
+        "attention": [
+          {"taskId": "date-only", "overdue": true, "dueSoon": false}
+        ],
+        "reminder": {
+          "workDate": "2026-11-19",
+          "period": "morning",
+          "taskIds": ["date-only"]
+        }
+      }
+    },
+    {
+      "name": "attention_order_prefers_overdue_then_urgent_then_due_soon",
+      "now": "2026-11-17T09:05:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "normal-later",
+          "title": "普通事项",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-25",
+          "priority": "normal",
+          "completed": false
+        },
+        {
+          "taskId": "due-soon",
+          "title": "明天交",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "priority": "normal",
+          "completed": false
+        },
+        {
+          "taskId": "urgent-later",
+          "title": "紧急但不临期",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-24",
+          "priority": "very_urgent",
+          "completed": false
+        },
+        {
+          "taskId": "overdue",
+          "title": "逾期事项",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-16",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["overdue", "urgent-later", "due-soon", "normal-later"],
+        "attention": [
+          {"taskId": "overdue", "overdue": true, "dueSoon": false},
+          {"taskId": "urgent-later", "overdue": false, "dueSoon": false},
+          {"taskId": "due-soon", "overdue": false, "dueSoon": true},
+          {"taskId": "normal-later", "overdue": false, "dueSoon": false}
+        ],
+        "reminder": {
+          "workDate": "2026-11-17",
+          "period": "morning",
+          "taskIds": ["overdue", "urgent-later", "due-soon"]
+        }
+      }
+    },
+    {
+      "name": "morning_skips_task_without_attention",
+      "now": "2026-11-17T09:05:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "normal-later",
+          "title": "普通事项",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-25",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["normal-later"],
+        "attention": [
+          {"taskId": "normal-later", "overdue": false, "dueSoon": false}
+        ],
+        "reminder": null
+      }
+    },
+    {
+      "name": "evening_includes_all_unfinished_tasks",
+      "now": "2026-11-17T17:45:00+08:00",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "normal-later",
+          "title": "普通事项",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-25",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["normal-later"],
+        "attention": [
+          {"taskId": "normal-later", "overdue": false, "dueSoon": false}
+        ],
+        "reminder": {
+          "workDate": "2026-11-17",
+          "period": "evening",
+          "taskIds": ["normal-later"]
+        }
+      }
+    },
+    {
+      "name": "utc_input_is_evaluated_in_work_timezone",
+      "now": "2026-11-17T01:05:00Z",
+      "settings": {
+        "workdays": [1, 2, 3, 4, 5],
+        "timeZone": "Asia/Shanghai",
+        "workStart": "09:00",
+        "workEnd": "18:00",
+        "reminderLeadMinutes": 15
+      },
+      "acknowledged": [],
+      "tasks": [
+        {
+          "taskId": "proposal",
+          "title": "交方案",
+          "createdOn": "2026-11-16",
+          "dueDate": "2026-11-18",
+          "priority": "normal",
+          "completed": false
+        }
+      ],
+      "expected": {
+        "visibleTaskIds": ["proposal"],
+        "attention": [
+          {"taskId": "proposal", "overdue": false, "dueSoon": true}
+        ],
+        "reminder": {
+          "workDate": "2026-11-17",
+          "period": "morning",
+          "taskIds": ["proposal"]
+        }
+      }
+    }
+  ]
+}
+

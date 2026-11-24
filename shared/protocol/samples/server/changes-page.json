@@ -1,0 +1,23 @@
+{
+  "changes": [
+    {
+      "seq": 12,
+      "type": "task.updated",
+      "task": {
+        "taskId": "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d",
+        "title": "核对运费",
+        "titleSource": "manual",
+        "createdOn": "2026-11-17",
+        "dueDate": "2026-11-17",
+        "dueTime": "15:00",
+        "priority": "normal",
+        "completed": true,
+        "completedAt": "2026-11-17T02:14:00Z",
+        "updatedAt": "2026-11-17T02:14:00Z"
+      }
+    }
+  ],
+  "nextCursor": 12,
+  "hasMore": false
+}
+

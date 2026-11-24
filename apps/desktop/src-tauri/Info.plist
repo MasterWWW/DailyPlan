@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>DailyPlan 需要使用麦克风把语音直接保存为待办。</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>DailyPlan 连接公司内网的同步服务。</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>DailyPlan 使用截图快捷键把选区直接保存为待办。</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>LSUIElement</key>
+  <false/>
+</dict>
+</plist>
+

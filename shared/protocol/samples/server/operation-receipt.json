@@ -1,0 +1,17 @@
+{
+  "opId": "d2c88af3-9518-47b4-a93f-73e0a1108272",
+  "cursor": 1,
+  "task": {
+    "taskId": "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d",
+    "title": "核对运费",
+    "titleSource": "manual",
+    "createdOn": "2026-11-17",
+    "dueDate": "2026-11-17",
+    "dueTime": null,
+    "priority": "normal",
+    "completed": false,
+    "completedAt": null,
+    "updatedAt": "2026-11-17T01:03:11Z"
+  }
+}
+

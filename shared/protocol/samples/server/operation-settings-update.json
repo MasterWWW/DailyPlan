@@ -1,0 +1,14 @@
+{
+  "opId": "038e29b5-22f4-46dd-95d3-7f51fdf7b8f9",
+  "deviceId": "f5ee92f1-d692-4d5b-bba3-bfbd6a8d370c",
+  "type": "settings.update",
+  "occurredAt": "2026-11-17T10:20:00+08:00",
+  "settings": {
+    "workdays": [1, 2, 3, 4, 5],
+    "timeZone": "Asia/Shanghai",
+    "workStart": "09:00",
+    "workEnd": "18:00",
+    "reminderLeadMinutes": 15
+  }
+}
+

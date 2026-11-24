@@ -1,0 +1,52 @@
+[package]
+name = "dailyplan"
+version = "0.1.0"
+description = "DailyPlan desktop client"
+authors = ["DailyPlan"]
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "dailyplan_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.6", features = [] }
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+cpal = "=0.15.3"
+hound = "3.5"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+keyring = { version = "3.6.3", features = ["apple-native"] }
+log = "0.4"
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+tauri = { version = "2.12.7", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-global-shortcut = "2.4.1"
+tauri-plugin-opener = "2.7.3"
+tauri-plugin-single-instance = "2.5.5"
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "macros", "sync", "time"] }
+url = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = "0.3.2"
+objc2-foundation = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
