@@ -78,9 +78,20 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
-      - name: Install Android platform 36
-        run: sdkmanager "platforms;android-36"
+      - name: Accept Android SDK licenses and install platform 36
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "${SDKMANAGER}" ]; then
+            SDKMANAGER="$(find "${SDK_ROOT}/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -1)"
+          fi
+          if [ ! -x "${SDKMANAGER}" ]; then
+            echo "sdkmanager not found under ${SDK_ROOT}/cmdline-tools" >&2
+            exit 1
+          fi
+          echo "Using ${SDKMANAGER}"
+          yes | "${SDKMANAGER}" --licenses >/dev/null 2>&1 || true
+          "${SDKMANAGER}" "platforms;android-36"
       - name: Shared unit tests
         working-directory: apps/mobile
         run: ./gradlew :shared:testDebugUnitTest
