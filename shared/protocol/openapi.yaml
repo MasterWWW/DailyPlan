@@ -383,6 +383,23 @@ components:
             fallback:
               $ref: "#/components/schemas/Task"
         - type: object
+          required: [opId, deviceId, type, taskId]
+          properties:
+            opId:
+              type: string
+              format: uuid
+            deviceId:
+              type: string
+              format: uuid
+            type:
+              const: task.delete
+            occurredAt:
+              type: string
+              format: date-time
+            taskId:
+              type: string
+              format: uuid
+        - type: object
           required: [opId, deviceId, type, settings]
           properties:
             opId:
@@ -453,7 +470,7 @@ components:
           format: int64
         type:
           type: string
-          enum: [task.created, task.updated, settings.updated, attachment.updated]
+          enum: [task.created, task.updated, settings.updated, attachment.updated, task.deleted]
         task:
           $ref: "#/components/schemas/Task"
         settings:

@@ -277,6 +277,10 @@ mod tests {
             .as_ref()
             .is_some_and(|task| task.completed));
 
+        let delete: serde_json::Value = load("operation-task-delete.json");
+        assert_eq!(delete["type"], "task.delete");
+        assert_eq!(delete["taskId"], "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d");
+
         let snapshot: Snapshot = load("snapshot.json");
         assert_eq!(snapshot.cursor, 12);
         assert_eq!(snapshot.tasks.len(), 1);

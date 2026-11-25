@@ -288,6 +288,22 @@ class PlanRepository(
         dao.upsertTask(current.copy(updatedAt = clock.now().toString()))
     }
 
+    suspend fun deleteTask(taskId: String): List<LocalAttachment> {
+        dao.task(taskId) ?: error("待办不存在")
+        val attachments = dao.attachmentsFor(taskId).map(AttachmentEntity::toLocal)
+        val settings = settingsEntity()
+        val now = clock.now()
+        val operation = Operation(
+            opId = newId(),
+            deviceId = settings.deviceId,
+            type = "task.delete",
+            occurredAt = now.toString(),
+            taskId = taskId,
+        )
+        dao.deleteTaskWithPending(taskId, pendingEntity(operation, taskId, listOf("task"), now))
+        return attachments
+    }
+
     suspend fun saveSettings(work: WorkSettings, serverUrl: String) {
         validateWorkSettings(work)
         val current = settingsEntity()
@@ -478,6 +494,13 @@ class PlanRepository(
                 }
             val hasPendingSettings = dirtyByTarget.containsKey("settings")
             for (change in changes) {
+                if (change.type == "task.deleted") {
+                    change.task?.let { remote ->
+                        dao.deletePendingForTarget(remote.taskId)
+                        dao.deleteTask(remote.taskId)
+                    }
+                    continue
+                }
                 change.task?.let { remote ->
                     val local = dao.task(remote.taskId)?.toModel()
                     val merged = mergeTask(local, remote, dirtyByTarget[remote.taskId].orEmpty())
@@ -527,6 +550,11 @@ class PlanRepository(
                 dao.saveSettings(
                     settings.copyWorkSettings(work),
                 )
+            }
+            "task.delete" -> {
+                val taskId = operation.taskId ?: return
+                dao.deletePendingForTarget(taskId)
+                dao.deleteTask(taskId)
             }
         }
     }

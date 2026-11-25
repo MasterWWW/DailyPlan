@@ -30,6 +30,9 @@ abstract class DailyPlanDao {
     @Query("DELETE FROM tasks")
     abstract suspend fun deleteAllTasks()
 
+    @Query("DELETE FROM tasks WHERE taskId = :taskId")
+    abstract suspend fun deleteTask(taskId: String)
+
     @Query("SELECT * FROM attachments WHERE taskId = :taskId ORDER BY createdAt ASC")
     abstract suspend fun attachmentsFor(taskId: String): List<AttachmentEntity>
 
@@ -80,6 +83,9 @@ abstract class DailyPlanDao {
 
     @Query("DELETE FROM pending_operations WHERE opId = :opId")
     abstract suspend fun deletePending(opId: String)
+
+    @Query("DELETE FROM pending_operations WHERE targetId = :targetId")
+    abstract suspend fun deletePendingForTarget(targetId: String)
 
     @Query("DELETE FROM pending_operations")
     abstract suspend fun deleteAllPending()
@@ -148,6 +154,13 @@ abstract class DailyPlanDao {
     open suspend fun updateTask(task: TaskEntity, operation: PendingOperationEntity) {
         upsertTask(task)
         insertPending(operation)
+    }
+
+    @Transaction
+    open suspend fun deleteTaskWithPending(taskId: String, operation: PendingOperationEntity) {
+        deletePendingForTarget(taskId)
+        insertPending(operation)
+        deleteTask(taskId)
     }
 
     @Transaction

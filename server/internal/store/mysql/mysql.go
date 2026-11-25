@@ -408,6 +408,57 @@ func (s *Store) updateTaskTx(ctx context.Context, tx *sql.Tx, task model.Task) e
 	return err
 }
 
+func (s *Store) deleteTaskTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	taskID string,
+) (model.Task, []model.Attachment, error) {
+	task, err := s.taskTx(ctx, tx, taskID, true)
+	if err != nil {
+		return model.Task{}, nil, err
+	}
+	rows, err := tx.QueryContext(ctx,
+		"SELECT "+attachmentColumns+" FROM attachments WHERE dataset_id = ? AND task_id = ?",
+		s.datasetID, taskID)
+	if err != nil {
+		return model.Task{}, nil, err
+	}
+	attachments := make([]model.Attachment, 0)
+	for rows.Next() {
+		attachment, err := scanAttachment(rows)
+		if err != nil {
+			rows.Close()
+			return model.Task{}, nil, err
+		}
+		attachments = append(attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return model.Task{}, nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return model.Task{}, nil, err
+	}
+	for _, attachment := range attachments {
+		if _, err := tx.ExecContext(ctx,
+			"DELETE FROM transcription_jobs WHERE dataset_id = ? AND attachment_id = ?",
+			s.datasetID, attachment.AttachmentID); err != nil {
+			return model.Task{}, nil, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		"DELETE FROM attachments WHERE dataset_id = ? AND task_id = ?",
+		s.datasetID, taskID); err != nil {
+		return model.Task{}, nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		"DELETE FROM tasks WHERE dataset_id = ? AND task_id = ?",
+		s.datasetID, taskID); err != nil {
+		return model.Task{}, nil, err
+	}
+	return task, attachments, nil
+}
+
 func applyPatch(task *model.Task, patch model.TaskPatch, now time.Time) {
 	if patch.Title != nil {
 		task.Title = *patch.Title
@@ -438,35 +489,37 @@ func applyPatch(task *model.Task, patch model.TaskPatch, now time.Time) {
 	task.UpdatedAt = now.UTC()
 }
 
-func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash string) (model.OperationReceipt, error) {
+func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash string) (model.OperationReceipt, []model.Attachment, error) {
 	if receipt, found, err := s.loadReceipt(ctx, op.OpID, bodyHash); err != nil || found {
-		return receipt, err
+		return receipt, nil, err
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	}
 	defer tx.Rollback()
 
 	lastSeq, err := lockSyncState(ctx, tx, s.datasetID)
 	if err != nil {
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	}
 	if receipt, found, err := loadReceiptTx(ctx, tx, s.datasetID, op.OpID, bodyHash); err != nil {
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	} else if found {
-		return receipt, tx.Commit()
+		return receipt, nil, tx.Commit()
 	}
 
 	now := time.Now().UTC()
 	receipt := model.OperationReceipt{OpID: op.OpID}
 	var change model.Change
+	var removed []model.Attachment
+	noChange := false
 	switch op.Type {
 	case "task.create":
 		task := *op.Task
 		if err := s.insertTaskTx(ctx, tx, task); err != nil {
-			return model.OperationReceipt{}, err
+			return model.OperationReceipt{}, nil, err
 		}
 		receipt.Task = &task
 		change = model.Change{Type: "task.created", Task: &task}
@@ -475,7 +528,7 @@ func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash
 		created := false
 		if errors.Is(err, model.ErrNotFound) {
 			if op.Fallback == nil {
-				return model.OperationReceipt{}, fmt.Errorf("%w: task does not exist", model.ErrConflict)
+				return model.OperationReceipt{}, nil, fmt.Errorf("%w: task does not exist", model.ErrConflict)
 			}
 			task = *op.Fallback
 			task.UpdatedAt = now
@@ -487,15 +540,15 @@ func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash
 				task.CompletedAt = nil
 			}
 			if err := s.insertTaskTx(ctx, tx, task); err != nil {
-				return model.OperationReceipt{}, err
+				return model.OperationReceipt{}, nil, err
 			}
 			created = true
 		} else if err != nil {
-			return model.OperationReceipt{}, err
+			return model.OperationReceipt{}, nil, err
 		}
 		applyPatch(&task, *op.Set, now)
 		if err := s.updateTaskTx(ctx, tx, task); err != nil {
-			return model.OperationReceipt{}, err
+			return model.OperationReceipt{}, nil, err
 		}
 		receipt.Task = &task
 		changeType := "task.updated"
@@ -503,11 +556,24 @@ func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash
 			changeType = "task.created"
 		}
 		change = model.Change{Type: changeType, Task: &task}
+	case "task.delete":
+		task, attachments, err := s.deleteTaskTx(ctx, tx, op.TaskID)
+		if errors.Is(err, model.ErrNotFound) {
+			receipt.Cursor = lastSeq
+			noChange = true
+			break
+		}
+		if err != nil {
+			return model.OperationReceipt{}, nil, err
+		}
+		removed = attachments
+		receipt.Task = &task
+		change = model.Change{Type: "task.deleted", Task: &task}
 	case "settings.update":
 		settings := *op.Settings
 		workdays, err := json.Marshal(settings.Workdays)
 		if err != nil {
-			return model.OperationReceipt{}, err
+			return model.OperationReceipt{}, nil, err
 		}
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO work_settings
@@ -520,28 +586,30 @@ func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash
 			s.datasetID, workdays, settings.TimeZone, settings.WorkStart, settings.WorkEnd,
 			settings.ReminderLeadMinutes, now)
 		if err != nil {
-			return model.OperationReceipt{}, err
+			return model.OperationReceipt{}, nil, err
 		}
 		receipt.Settings = &settings
 		change = model.Change{Type: "settings.updated", Settings: &settings}
 	default:
-		return model.OperationReceipt{}, fmt.Errorf("%w: unsupported operation", model.ErrInvalid)
+		return model.OperationReceipt{}, nil, fmt.Errorf("%w: unsupported operation", model.ErrInvalid)
 	}
 
-	lastSeq++
-	change.Seq = lastSeq
-	receipt.Cursor = lastSeq
-	if err := s.writeChangeTx(ctx, tx, change); err != nil {
-		return model.OperationReceipt{}, err
-	}
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE sync_state SET last_seq = ?, updated_at = ? WHERE dataset_id = ?",
-		lastSeq, now, s.datasetID); err != nil {
-		return model.OperationReceipt{}, err
+	if !noChange {
+		lastSeq++
+		change.Seq = lastSeq
+		receipt.Cursor = lastSeq
+		if err := s.writeChangeTx(ctx, tx, change); err != nil {
+			return model.OperationReceipt{}, nil, err
+		}
+		if _, err := tx.ExecContext(ctx,
+			"UPDATE sync_state SET last_seq = ?, updated_at = ? WHERE dataset_id = ?",
+			lastSeq, now, s.datasetID); err != nil {
+			return model.OperationReceipt{}, nil, err
+		}
 	}
 	receiptJSON, err := json.Marshal(receipt)
 	if err != nil {
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	}
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO operations
@@ -553,18 +621,18 @@ func (s *Store) ApplyOperation(ctx context.Context, op model.Operation, bodyHash
 			_ = tx.Rollback()
 			existing, found, lookupErr := s.loadReceipt(ctx, op.OpID, bodyHash)
 			if lookupErr != nil {
-				return model.OperationReceipt{}, lookupErr
+				return model.OperationReceipt{}, nil, lookupErr
 			}
 			if found {
-				return existing, nil
+				return existing, nil, nil
 			}
 		}
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return model.OperationReceipt{}, err
+		return model.OperationReceipt{}, nil, err
 	}
-	return receipt, nil
+	return receipt, removed, nil
 }
 
 func lockSyncState(ctx context.Context, tx *sql.Tx, datasetID string) (int64, error) {

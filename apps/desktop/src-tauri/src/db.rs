@@ -628,6 +628,19 @@ impl Db {
         let tx = conn.transaction()?;
         let pending = read_pending(&tx)?;
         for change in changes {
+            if change.change_type == "task.deleted" {
+                if let Some(task) = &change.task {
+                    tx.execute(
+                        "DELETE FROM pending_operations WHERE target_id = ?1",
+                        [task.task_id.as_str()],
+                    )?;
+                    tx.execute(
+                        "DELETE FROM tasks WHERE task_id = ?1",
+                        [task.task_id.as_str()],
+                    )?;
+                }
+                continue;
+            }
             if let Some(task) = &change.task {
                 let dirty = dirty_fields_for(&pending, &task.task_id);
                 let local = read_task_tx(&tx, &task.task_id)?;

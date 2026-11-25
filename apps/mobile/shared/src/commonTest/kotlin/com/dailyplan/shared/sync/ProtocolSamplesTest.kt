@@ -37,6 +37,10 @@ class ProtocolSamplesTest {
         assertEquals("task.update", update.type)
         assertEquals("15:00", update.set?.get("dueTime")?.toString()?.trim('"'))
 
+        val delete = load<Operation>("operation-task-delete.json")
+        assertEquals("task.delete", delete.type)
+        assertEquals("aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d", delete.taskId)
+
         val settings = load<Operation>("operation-settings-update.json")
         assertEquals("settings.update", settings.type)
         assertNotNull(settings.settings)

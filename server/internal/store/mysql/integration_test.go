@@ -72,21 +72,21 @@ func TestStoreTransactionsAndIdempotency(t *testing.T) {
 	}
 
 	op, hash := taskOperation(t, newTask("task-1"), "create-1")
-	receipt, err := dataStore.ApplyOperation(ctx, op, hash)
+	receipt, _, err := dataStore.ApplyOperation(ctx, op, hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if receipt.Cursor != 1 || receipt.Task == nil || receipt.Task.TaskID != "task-1" {
 		t.Fatalf("unexpected first receipt: %#v", receipt)
 	}
-	repeated, err := dataStore.ApplyOperation(ctx, op, hash)
+	repeated, _, err := dataStore.ApplyOperation(ctx, op, hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if repeated.Cursor != receipt.Cursor {
 		t.Fatalf("repeated op cursor = %d, want %d", repeated.Cursor, receipt.Cursor)
 	}
-	if _, err := dataStore.ApplyOperation(ctx, op, "different-hash"); !errors.Is(err, model.ErrConflict) {
+	if _, _, err := dataStore.ApplyOperation(ctx, op, "different-hash"); !errors.Is(err, model.ErrConflict) {
 		t.Fatalf("same op with different body: got %v, want conflict", err)
 	}
 
@@ -110,7 +110,7 @@ func TestStoreTransactionsAndIdempotency(t *testing.T) {
 	if err := update.Validate(time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
-	updateReceipt, err := dataStore.ApplyOperation(ctx, update, hashString("update-1"))
+	updateReceipt, _, err := dataStore.ApplyOperation(ctx, update, hashString("update-1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestStoreTransactionsAndIdempotency(t *testing.T) {
 	if err := settingsOp.Validate(time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
-	settingsReceipt, err := dataStore.ApplyOperation(ctx, settingsOp, hashString("settings-1"))
+	settingsReceipt, _, err := dataStore.ApplyOperation(ctx, settingsOp, hashString("settings-1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestConcurrentOperationsHaveContiguousCursor(t *testing.T) {
 			defer wait.Done()
 			taskID := fmt.Sprintf("concurrent-%d", index)
 			op, hash := taskOperation(t, newTask(taskID), fmt.Sprintf("concurrent-%d", index))
-			if _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
+			if _, _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
 				errs <- err
 			}
 		}(i)
@@ -206,7 +206,7 @@ func TestConcurrentRetryOfSameOperationProvesExactlyOnce(t *testing.T) {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			receipt, err := dataStore.ApplyOperation(ctx, op, hash)
+			receipt, _, err := dataStore.ApplyOperation(ctx, op, hash)
 			if err != nil {
 				errs <- err
 				return
@@ -252,7 +252,7 @@ func TestTranscriptionLifecyclePreservesManualContent(t *testing.T) {
 	task.Title = "语音待办 · 09:30"
 	task.TitleSource = model.TitleSourceVoice
 	op, hash := taskOperation(t, task, "voice-create")
-	if _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
+	if _, _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
 		t.Fatal(err)
 	}
 
@@ -299,7 +299,7 @@ func TestPublishAttachmentRejectsReusedIDWithDifferentSize(t *testing.T) {
 	dataStore := testStore(t)
 	ctx := context.Background()
 	op, hash := taskOperation(t, newTask("attachment-size-task"), "attachment-size-task")
-	if _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
+	if _, _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
 		t.Fatal(err)
 	}
 	attachment := model.Attachment{
@@ -316,6 +316,95 @@ func TestPublishAttachmentRejectsReusedIDWithDifferentSize(t *testing.T) {
 	attachment.ByteSize++
 	if _, _, err := dataStore.PublishAttachment(ctx, attachment, "attachment-size.png"); !errors.Is(err, model.ErrConflict) {
 		t.Fatalf("reused attachment size error = %v, want conflict", err)
+	}
+}
+
+func TestDeleteTaskCascadesAttachmentsAndEmitsTombstone(t *testing.T) {
+	dataStore := testStore(t)
+	ctx := context.Background()
+
+	op, hash := taskOperation(t, newTask("delete-me"), "delete-create")
+	if _, _, err := dataStore.ApplyOperation(ctx, op, hash); err != nil {
+		t.Fatal(err)
+	}
+	attachment := model.Attachment{
+		AttachmentID: "delete-recording",
+		TaskID:       "delete-me",
+		Kind:         model.AttachmentRecording,
+		MediaType:    "audio/wav",
+		ByteSize:     1000,
+		SHA256:       hashString("delete-recording"),
+	}
+	if _, _, err := dataStore.PublishAttachment(ctx, attachment, "delete-recording.wav"); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteOp := model.Operation{
+		OpID:     "op-delete",
+		DeviceID: "device-a",
+		Type:     "task.delete",
+		TaskID:   "delete-me",
+	}
+	if err := deleteOp.Validate(time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	receipt, removed, err := dataStore.ApplyOperation(ctx, deleteOp, hashString("delete"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Task == nil || receipt.Task.TaskID != "delete-me" {
+		t.Fatalf("unexpected delete receipt: %#v", receipt)
+	}
+	if len(removed) != 1 || removed[0].AttachmentID != "delete-recording" {
+		t.Fatalf("removed attachments = %#v, want recording", removed)
+	}
+
+	snapshot, err := dataStore.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Tasks) != 0 || len(snapshot.Attachments) != 0 {
+		t.Fatalf("expected empty snapshot after delete, got tasks=%d attachments=%d",
+			len(snapshot.Tasks), len(snapshot.Attachments))
+	}
+	page, err := dataStore.Changes(ctx, 0, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := page.Changes[len(page.Changes)-1]
+	if last.Type != "task.deleted" || last.Task == nil || last.Task.TaskID != "delete-me" {
+		t.Fatalf("unexpected delete change: %#v", last)
+	}
+	if _, err := dataStore.Attachment(ctx, "delete-recording"); !errors.Is(err, model.ErrNotFound) {
+		t.Fatalf("attachment lookup after delete = %v, want not found", err)
+	}
+
+	repeated, _, err := dataStore.ApplyOperation(ctx, deleteOp, hashString("delete"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repeated.Cursor != receipt.Cursor {
+		t.Fatalf("repeated delete cursor = %d, want %d", repeated.Cursor, receipt.Cursor)
+	}
+
+	other := model.Operation{
+		OpID:     "op-delete-2",
+		DeviceID: "device-a",
+		Type:     "task.delete",
+		TaskID:   "delete-me",
+	}
+	if err := other.Validate(time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	noopReceipt, removed2, err := dataStore.ApplyOperation(ctx, other, hashString("delete-2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noopReceipt.Cursor != receipt.Cursor {
+		t.Fatalf("delete of missing task cursor = %d, want %d", noopReceipt.Cursor, receipt.Cursor)
+	}
+	if len(removed2) != 0 {
+		t.Fatalf("delete of missing task removed attachments = %#v, want none", removed2)
 	}
 }
 

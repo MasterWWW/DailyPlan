@@ -30,4 +30,10 @@ class AndroidAttachmentStorage(context: Context) : LocalAttachmentStorage {
         check(temp.renameTo(target)) { "无法保存附件" }
         target.absolutePath
     }
+
+    override suspend fun delete(path: String) {
+        withContext(Dispatchers.IO) {
+            File(path).delete()
+        }
+    }
 }

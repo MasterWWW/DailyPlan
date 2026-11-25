@@ -145,10 +145,13 @@ func (a *API) operations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash := sha256.Sum256(body)
-	receipt, err := a.store.ApplyOperation(r.Context(), op, hex.EncodeToString(hash[:]))
+	receipt, removed, err := a.store.ApplyOperation(r.Context(), op, hex.EncodeToString(hash[:]))
 	if err != nil {
 		a.fail(w, err)
 		return
+	}
+	for _, attachment := range removed {
+		a.attachments.Remove(attachment.StorageKey)
 	}
 	writeJSON(w, http.StatusOK, receipt)
 }

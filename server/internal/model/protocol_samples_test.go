@@ -46,6 +46,16 @@ func TestProtocolSamplesDecode(t *testing.T) {
 		t.Fatalf("unexpected task.update sample: %#v", taskUpdate.Set)
 	}
 
+	var taskDelete Operation
+	loadProtocolSample(t, "operation-task-delete.json", &taskDelete)
+	if err := taskDelete.Validate(time.Now().UTC()); err != nil {
+		t.Fatalf("validate task.delete sample: %v", err)
+	}
+	if taskDelete.Type != "task.delete" ||
+		taskDelete.TaskID != "aa24217b-93d7-4a3b-b9bf-f9c79e9fca3d" {
+		t.Fatalf("unexpected task.delete sample: %#v", taskDelete)
+	}
+
 	var settingsUpdate Operation
 	loadProtocolSample(t, "operation-settings-update.json", &settingsUpdate)
 	if err := settingsUpdate.Validate(time.Now().UTC()); err != nil {

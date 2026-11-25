@@ -25,10 +25,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -89,6 +92,7 @@ fun TaskDetailScreen(
         .collectAsStateWithLifecycle(emptyList())
     var previewPath by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
+    var confirmingDelete by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -147,6 +151,9 @@ fun TaskDetailScreen(
                     tint = if (task.completed) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            IconButton(onClick = { confirmingDelete = true }) {
+                Icon(Icons.Outlined.Delete, contentDescription = "删除待办")
             }
         }
 
@@ -285,6 +292,43 @@ fun TaskDetailScreen(
 
     previewPath?.let { path ->
         ImagePreview(path) { previewPath = null }
+    }
+
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text("删除待办") },
+            text = { Text("将同时删除该待办下的所有截图和录音，且无法恢复。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmingDelete = false
+                        scope.launch {
+                            val failure = runCatching {
+                                val removed = container.repository.deleteTask(task.taskId)
+                                removed.forEach { local ->
+                                    local.localPath?.let { container.attachmentStorage.delete(it) }
+                                }
+                                DailyPlanWidget.updateAll(context)
+                            }.exceptionOrNull()
+                            if (failure != null) {
+                                onMessage(failure.message ?: "删除失败")
+                            } else {
+                                onBack()
+                                onMessage("已删除")
+                            }
+                        }
+                    },
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDelete = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
 

@@ -4,4 +4,6 @@ interface LocalAttachmentStorage {
     suspend fun read(path: String): ByteArray
 
     suspend fun write(attachmentId: String, mediaType: String, bytes: ByteArray): String
+
+    suspend fun delete(path: String)
 }

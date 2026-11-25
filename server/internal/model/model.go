@@ -401,6 +401,12 @@ func (o *Operation) Validate(now time.Time) error {
 			}
 		}
 		return nil
+	case "task.delete":
+		if err := ValidateID(strings.TrimSpace(o.TaskID), "taskId"); err != nil {
+			return err
+		}
+		o.TaskID = strings.TrimSpace(o.TaskID)
+		return nil
 	case "settings.update":
 		if o.Settings == nil {
 			return fmt.Errorf("%w: settings is required", ErrInvalid)

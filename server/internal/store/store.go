@@ -11,7 +11,7 @@ type Store interface {
 	Close() error
 
 	Status(context.Context) (model.Status, error)
-	ApplyOperation(context.Context, model.Operation, string) (model.OperationReceipt, error)
+	ApplyOperation(context.Context, model.Operation, string) (model.OperationReceipt, []model.Attachment, error)
 	Changes(context.Context, int64, int) (model.ChangesPage, error)
 	Snapshot(context.Context) (model.Snapshot, error)
 
